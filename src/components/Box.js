@@ -182,7 +182,7 @@ export default class Box extends Component {
                 <option value="water">Agua</option>
                 <option value="rainbow">Arcoíris</option>
                 <option value="bw">Blanco & Negro</option>
-                <option value="bubbles">Busbujas</option>
+                <option value="bubbles">Burbujas</option>
                 <option value="default">Por defecto</option>
                 {/* <option value="demo">DEMO</option> */}
                 <option value="stair">Escalera</option>
