@@ -1,0 +1,216 @@
+.box {
+  display: flex;
+  background-color: $bg-alt;
+  box-shadow: $shadow;
+  flex-direction: row;
+  width: min-content;
+  min-width: fit-content;
+  @media screen and (max-width: 800px) {
+    & {
+      flex-direction: column;
+    }
+  }
+  @media screen and (max-width: 460px) {
+    & {
+      width: 100%;
+    }
+  }
+}
+.box__output {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  @media screen and (max-width: 800px) {
+    & {
+      padding: 3rem;
+      width: fit-content;
+      margin: 0 auto;
+    }
+  }
+}
+#canvas-noise {
+  &:hover {
+    cursor: grab;
+  }
+  &:active {
+    cursor: grabbing;
+  }
+}
+/* #canvas-skin {
+  &:hover {
+    cursor: w-resize;
+  }
+  &:active {
+    cursor: grabbing;
+  }
+} */
+#canvas-noise.grid,
+#canvas-skin.grid {
+  background-image: url("../images/grid.png");
+}
+#canvas-noise.white,
+#canvas-skin.white {
+  background-color: white;
+}
+#canvas-noise.black,
+#canvas-skin.black {
+  background-color: black;
+}
+#canvas-fps {
+  background-color: #00000088;
+  left: 0px;
+  position: absolute;
+  top: 0px;
+  pointer-events: none;
+  @media screen and (max-width: 800px) {
+    & {
+      left: 3rem;
+      top: 3rem;
+    }
+  }
+}
+/* #canvas-skin {
+} */
+.box__tab {
+  display: grid;
+  grid-template-areas: "label-base label-clock label-wave label-view" "div div div div";
+  grid-template-rows: min-content max-content;
+  width: min-content;
+  @media screen and (max-width: 800px) {
+    & {
+      width: 100%;
+    }
+  }
+}
+.tab-label {
+  cursor: pointer;
+  box-sizing: border-box;
+  display: flex;
+  font-weight: 500;
+  height: min-content;
+  padding: 1.25rem 2rem;
+  place-content: center;
+  width: fit-content;
+  &:hover,
+  &:active {
+    text-decoration: underline;
+  }
+  &:first-of-type {
+    padding-left: 3rem;
+  }
+  &:last-of-type {
+    padding-right: 3rem;
+  }
+  @media screen and (max-width: 800px) {
+    & {
+      padding: 1.25rem 0;
+      width: 100%;
+      border-top: 1px solid $bg;
+    }
+    &:first-of-type {
+      padding-left: 0;
+    }
+    &:last-of-type {
+      padding-right: 0;
+    }
+  }
+}
+.tab-label[for="radio--base"] {
+  grid-area: label-base;
+}
+.tab-label[for="radio--clock"] {
+  grid-area: label-clock;
+}
+.tab-label[for="radio--wave"] {
+  grid-area: label-wave;
+}
+.tab-label[for="radio--view"] {
+  grid-area: label-view;
+}
+.tab-radio {
+  display: none;
+  &:checked + .tab-label {
+    text-decoration: underline;
+  }
+}
+.tab-content {
+  border-top: 1px solid $bg;
+  display: none;
+  flex-direction: column;
+  padding: 1.25rem 3rem;
+  @media screen and (max-width: 800px) {
+    & {
+      padding: 1.25rem 2rem;
+    }
+  }
+  @media screen and (max-width: 460px) {
+    & {
+      padding: 1.25rem 1.25rem;
+    }
+  }
+}
+.tab-content__item {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0.2rem 0;
+  width: 100%;
+  &:first-child {
+    margin-top: 0;
+  }
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+}
+.tab-content__item * {
+  font-family: monospace;
+}
+.tab-content__item label {
+  font-family: "Roboto";
+  border-bottom: 1px solid $bg;
+  width: 100%;
+  padding-right: 2rem;
+  &.opt {
+    margin-left: 1.5rem;
+    padding-left: 0.25rem;
+    border-left: 1px solid $bg;
+  }
+  /* @media screen and (max-width: 800px) {
+    & {
+    }
+  } */
+}
+.tab-content__item input[type="number"] {
+  box-sizing: border-box;
+  padding-left: 3px;
+  padding-right: 2px; // default
+  user-select: all;
+}
+.tab-content__item input[type="checkbox"] {
+  margin: 5px 107px 5px 0px;
+}
+.tab-content__item select,
+.tab-content__item input[type="number"] {
+  min-height: 23px;
+  min-width: 120px;
+}
+/* .input__tab-content#content--base {
+}
+.input__tab-content#content--clock {
+}
+.input__tab-content#content--wave {
+}
+.input__tab-content#content--view {
+} */
+.tab-content#content--base,
+.tab-content#content--clock,
+.tab-content#content--wave,
+.tab-content#content--view {
+  grid-area: div;
+}
+.tab-radio#radio--base:checked ~ .tab-content#content--base,
+.tab-radio#radio--clock:checked ~ .tab-content#content--clock,
+.tab-radio#radio--wave:checked ~ .tab-content#content--wave,
+.tab-radio#radio--view:checked ~ .tab-content#content--view {
+  display: flex;
+}

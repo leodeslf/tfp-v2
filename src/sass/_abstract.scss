@@ -1,0 +1,13 @@
+//$bg: hsl(0, 0%, 90%);
+$bg: hsl(0, 0%, 92%);
+$bg-alt: hsl(0, 0%, 100%);
+$color: hsl(0, 0%, 4%);
+$color-alt: hsl(0, 0%, 33%);
+$a: -1px 1px 2px hsla(0, 0%, 0%, 0.1);
+$b: 1px -1px 2px hsl(0, 0%, 98%);
+$box-shadow: $a, $b;
+$shadow: 0 0.1rem 0.5em hsla(0, 0%, 0%, 0.1);
+$size-xs: 12px;
+$size-m: 14px;
+$size-xl: 16px;
+$font: "Roboto", sans-serif, monospace;

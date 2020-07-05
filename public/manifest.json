@@ -1,0 +1,9 @@
+{
+  "short_name": "TFP v2",
+  "name": "Texturas Fractales y Procedurales v2",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0a0a0a",
+  "background_color": "#ebebeb"
+}
