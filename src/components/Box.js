@@ -25,7 +25,7 @@ export default class Box extends Component {
     };
     this.onInputChange = this.onInputChange.bind(this);
     this.setSkin = this.setSkin.bind(this);
-    this.windowOnMouseMove = this.windowOnMouseMove.bind(this);
+    this.canvasOnMouseMove = this.canvasOnMouseMove.bind(this);
   }
 
   componentDidMount() {
@@ -60,7 +60,7 @@ export default class Box extends Component {
     }
   }
 
-  windowOnMouseMove() {
+  canvasOnMouseMove() {
     window.onmousemove = (m) => {
       const dragX = -m.movementX;
       const dragY = -m.movementY;
@@ -79,7 +79,6 @@ export default class Box extends Component {
   setSkin(skinName) {
     if (skinName !== 'default') {
       const NEW_SKIN = new Image(256, 32);
-      NEW_SKIN.src = './skins/' + skinName + '.png';
       NEW_SKIN.onload = async () => {
         skinCtx.clearRect(0, 0, 256, 32);
         skinCtx.drawImage(NEW_SKIN, 0, 0);
@@ -89,8 +88,8 @@ export default class Box extends Component {
         resetLoop('skin', skinName);
         resetLoop('skinData', [...NEW_SKIN_DATA]);
       }
+      NEW_SKIN.src = './skins/' + skinName + '.png';
     } else if (skinName === 'default') {
-      DEF_SKIN.src = DEF_SKIN_SRC;
       DEF_SKIN.onload = () => {
         skinCtx.clearRect(0, 0, 256, 32);
         skinCtx.drawImage(DEF_SKIN, 0, 0);
@@ -98,6 +97,7 @@ export default class Box extends Component {
         resetLoop('skin', 'default');
         resetLoop('skinData', []);
       }
+      DEF_SKIN.src = DEF_SKIN_SRC;
     }
   }
 
@@ -107,7 +107,7 @@ export default class Box extends Component {
         <div className="box__output">
           <canvas id="canvas-noise" width={256} height={256}
             className={this.state.bg}
-            onMouseDown={this.windowOnMouseMove} />
+            onMouseDown={this.canvasOnMouseMove} />
           <canvas id="canvas-skin" width={256} height={16}
             className={this.state.bg} />
           <canvas id="canvas-fps" width={49} height={18}
