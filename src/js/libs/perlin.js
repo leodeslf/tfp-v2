@@ -1,45 +1,50 @@
+const FLOOR = Math.floor;
+
 /**
    * Returns a one-dimensional noise value (number between -1 and 1).
    * @param {number} x A numeric expression.
-   * @returns {number}
+   * @returns {number} Perlin Noise 1D value.
    */
-export const PERLIN_1D = (x) => {
-  const MFX = Math.floor(x);
-  const X = MFX & 255;
-  x = x - MFX;
+export const PERLIN_1D = x => {
+  const
+    FX = FLOOR(x),
+    X = FX & 255;
+  x = x - FX;
   return (
-    lerp(fade(x),
-      grad1D(P[P[X]], x),
-      grad1D(P[P[X + 1]], x - 1)));
+    LERP(
+      FADE(x),
+      GRAD_1D(P[P[X]], x),
+      GRAD_1D(P[P[X + 1]], x - 1)));
 }
 
 /**
  * Returns a two-dimensional noise value (number between -1 and 1).
  * @param {number} x A numeric expression.
  * @param {number} y A numeric expression.
- * @returns {number}
+ * @returns {number} Perlin Noise 2D value.
  */
 export const PERLIN_2D = (x, y) => {
-  const MFX = Math.floor(x);
-  const MFY = Math.floor(y);
-  const X = MFX & 255;
-  const Y = MFY & 255;
-  x = x - MFX;
-  y = y - MFY;
-  const A = P[X] + Y;
-  const B = P[X + 1] + Y;
-  const FX = fade(x);
+  const
+    FX = FLOOR(x),
+    FY = FLOOR(y),
+    X = FX & 255,
+    Y = FY & 255,
+    A = P[X] + Y,
+    B = P[X + 1] + Y;
+  x = x - FX;
+  const FDX = FADE(x);
+  y = y - FY;
   return (
-    lerp(
-      fade(y),
-      lerp(
-        FX,
-        grad2D(P[A], x, y),
-        grad2D(P[B], x - 1, y)),
-      lerp(
-        FX,
-        grad2D(P[A + 1], x, y - 1),
-        grad2D(P[B + 1], x - 1, y - 1))));
+    LERP(
+      FADE(y),
+      LERP(
+        FDX,
+        GRAD_2D(P[A], x, y),
+        GRAD_2D(P[B], x - 1, y)),
+      LERP(
+        FDX,
+        GRAD_2D(P[A + 1], x, y - 1),
+        GRAD_2D(P[B + 1], x - 1, y - 1))));
 }
 
 /**
@@ -47,49 +52,51 @@ export const PERLIN_2D = (x, y) => {
  * @param {number} x A numeric expression.
  * @param {number} y A numeric expression.
  * @param {number} z A numeric expression.
- * @returns {number}
+ * @returns {number} Perlin Noise 3D value.
  */
 export const PERLIN_3D = (x, y, z) => {
-  const MFX = Math.floor(x);
-  const MFY = Math.floor(y);
-  const MFZ = Math.floor(z);
-  const X = MFX & 255;
-  const Y = MFY & 255;
-  const Z = MFZ & 255;
-  x = x - MFX;
-  y = y - MFY;
-  z = z - MFZ;
-  const A = P[X] + Y;
-  const AA = P[A] + Z;
-  const AB = P[A + 1] + Z;
-  const B = P[X + 1] + Y;
-  const BA = P[B] + Z;
-  const BB = P[B + 1] + Z;
-  const FX = fade(x);
-  const FY = fade(y);
+  const
+    FX = Math.floor(x),
+    FY = Math.floor(y),
+    FZ = Math.floor(z),
+    X = FX & 255,
+    Y = FY & 255,
+    Z = FZ & 255,
+    A = P[X] + Y,
+    AA = P[A] + Z,
+    AB = P[A + 1] + Z,
+    B = P[X + 1] + Y,
+    BA = P[B] + Z,
+    BB = P[B + 1] + Z;
+  x = x - FX;
+  y = y - FY;
+  const
+    FDX = FADE(x),
+    FDY = FADE(y);
+  z = z - FZ;
   return (
-    lerp(
-      fade(z),
-      lerp(
-        FY,
-        lerp(
-          FX,
-          grad3D(P[AA], x, y, z),
-          grad3D(P[BA], x - 1, y, z)),
-        lerp(
-          FX,
-          grad3D(P[AB], x, y - 1, z),
-          grad3D(P[BB], x - 1, y - 1, z))),
-      lerp(
-        FY,
-        lerp(
-          FX,
-          grad3D(P[AA + 1], x, y, z - 1),
-          grad3D(P[BA + 1], x - 1, y, z - 1)),
-        lerp(
-          FX,
-          grad3D(P[AB + 1], x, y - 1, z - 1),
-          grad3D(P[BB + 1], x - 1, y - 1, z - 1)))));
+    LERP(
+      FADE(z),
+      LERP(
+        FDY,
+        LERP(
+          FDX,
+          GRAD_3D(P[AA], x, y, z),
+          GRAD_3D(P[BA], x - 1, y, z)),
+        LERP(
+          FDX,
+          GRAD_3D(P[AB], x, y - 1, z),
+          GRAD_3D(P[BB], x - 1, y - 1, z))),
+      LERP(
+        FDY,
+        LERP(
+          FDX,
+          GRAD_3D(P[AA + 1], x, y, z - 1),
+          GRAD_3D(P[BA + 1], x - 1, y, z - 1)),
+        LERP(
+          FDX,
+          GRAD_3D(P[AB + 1], x, y - 1, z - 1),
+          GRAD_3D(P[BB + 1], x - 1, y - 1, z - 1)))));
 }
 
 const P = [151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233,
@@ -126,27 +133,20 @@ const P = [151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233,
   29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180
 ];
 
-function grad1D(hash, x) {
-  const H = hash & 1;
-  return (H === 0 ? x : -x);
-}
+const GRAD_1D = (hash, x) => ((hash & 1) === 0) ? x : -x;
 
-function grad2D(hash, x, y) {
+const GRAD_2D = (hash, x, y) => {
   const H = hash & 3;
   return (H < 2 ? x : -x) + (H === 0 || H === 2 ? y : -y);
 }
 
-function grad3D(hash, x, y, z) {
-  const H = hash & 15;
-  const U = H < 8 ? x : y,
+const GRAD_3D = (hash, x, y, z) => {
+  const H = hash & 15,
+    U = H < 8 ? x : y,
     v = H < 4 ? y : H === 12 || H === 14 ? x : z;
   return ((H & 1) === 0 ? U : -U) + ((H & 2) === 0 ? v : -v);
 }
 
-export function fade(t) {
-  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-}
+export const FADE = (t) => t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 
-function lerp(t, a, b) {
-  return a + t * (b - a);
-}
+const LERP = (t, a, b) => a + t * (b - a);

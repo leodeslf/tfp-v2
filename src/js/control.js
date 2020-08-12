@@ -1,340 +1,422 @@
-import { PERLIN_3D, PERLIN_2D, PERLIN_1D, fade } from './libs/perlin';
+import { PERLIN_3D, PERLIN_2D, PERLIN_1D } from './libs/perlin';
 import { Vec2 } from './libs/vec';
 
-// utils
+// Utils.
+const INDEX = (x, y) => y * iMPPD * NOISE_CAN_W * iMPPD + x * iMPPD;
+const SIN = Math.sin;
+const COS = Math.cos;
+const TRUNC = Math.trunc;
 const PI = 3.14159;
-const IMG_RES = 256;
-const IMG_RES05 = IMG_RES * .5;
-const MAX = Math.max;
-const MIN = Math.min;
-
-const IMG_DATA = new ImageData(IMG_RES, IMG_RES);
-const DATA_ARRAY = [];
-
+const PI_05 = 1.570795;
+const COLOR_RANGE = 255;
+const HALF_COLOR_RANGE = 127;
+const INIT_ZOOM = 1;
+const PIXEL = [0, 0, 0, 0];
 let raf = 0;
-let ctx = undefined;
-let sizeW = undefined;
-let sizeH = undefined;
+// Inverse mult. of pixels per data.
+let iMPPD = 1;
 
-const INDEX = (x, y) => (y / S.ppd) * (IMG_RES / S.ppd) + (x / S.ppd);
-const U = (x) => (S.traX + x) * sizeW;
-const V = (y) => (S.traY + y) * sizeH;
+export const NOISE_CAN_W = 256;
+export const NOISE_CAN_H = 256;
+export const SKIN_CAN_W = 256;
+export const SKIN_CAN_H = 16;
 
-// settings
-export const S = {
-  type: 'genData3D',
-  flowFac: 100,
-  ridgeInv: false,
-  flameFac: 1,
-  centerFac: 1,
-  skin: 'default',
-  skinData: [],
-  /* skinRotation: false,
-  pixelsToRotate: 2, */
+// More utils.
+const NOISE_CAN_HALF_H = NOISE_CAN_H * .5;
+const NOISE_CAN_HALF_MIN_SIDE = NOISE_CAN_W > NOISE_CAN_H ?
+  NOISE_CAN_H * .5 :
+  NOISE_CAN_W * .5;
+// Inverse mult. of noise half min. side.
+const IMNCHMS = 1 / NOISE_CAN_HALF_MIN_SIDE;
+const NOISE_CENTER = new Vec2(NOISE_CAN_W * .5, NOISE_CAN_H * .5);
+
+// Canvas contexts and data holders.
+let noiseCtx = undefined;
+let skinCtx = undefined;
+let noiseData = [];
+let skinData = [];
+
+const NOISE_IMG = new ImageData(NOISE_CAN_W, NOISE_CAN_H);
+const SKIN_IMG = new Image(SKIN_CAN_W, SKIN_CAN_H);
+SKIN_IMG.onload = () => {
+  skinCtx.clearRect(0, 0, SKIN_CAN_W, SKIN_CAN_H);
+  skinCtx.drawImage(SKIN_IMG, 0, 0);
+  skinData = skinCtx.getImageData(0, 0, SKIN_CAN_W, 1).data;
+}
+
+// General configuration.
+export const CFG = {
+  /* Print */
+  isDefaultSkin: true,
+  skinName: 'default',
+  set setSkinName(name) {
+    SKIN_IMG.src = './skins/' + name + '.png';
+    this.skinName = name;
+    this.isDefaultSkin = name === 'default' ? true : false;
+  },
+  /* Settings */
+  type: '_3D',
+  set setType(type) {
+    this.type = type;
+    resetLoop(type);
+  },
+  invert: false,
+  /* Animation */
   run: true,
   step: 0.01,
   seed: 0.0,
-  specSeed: 0,
-  fre: 1.0,
-  amp: 1.0,
-  oct: 6,
-  lac: 2.0,
-  per: 0.5,
-  traX: 0,
-  traY: 0,
-  resW: 256,
-  resH: 256,
-  zoom: 1,
-  ppd: 2,
+  /* Noise */
+  frequency: 1.0,
+  amplitude: 1.0,
+  octaves: 6,
+  lacunarity: 2.0,
+  persistence: 0.5,
+  /* View */
+  traslationX: 0,
+  traslationY: 0,
+  resolutionW: NOISE_CAN_W,
+  resolutionH: NOISE_CAN_H,
+  zoom: INIT_ZOOM,
+  scaleW: 1 / NOISE_CAN_W * INIT_ZOOM,
+  scaleH: 1 / NOISE_CAN_H * INIT_ZOOM,
+  /* Pixels per data */
+  ppd: 3,
+  set setResolutionW(w) {
+    this.resolutionW = w;
+    this.scaleW = 1 / (w * this.zoom);
+  },
+  set setResolutionH(h) {
+    this.resolutionH = h;
+    this.scaleH = 1 / (h * this.zoom);
+  },
+  set setZoom(zoom) {
+    this.zoom = zoom;
+    this.scaleW = 1 / (this.resolutionW * zoom);
+    this.scaleH = 1 / (this.resolutionH * zoom);
+  },
+  set setPixelsPerData(pixels) {
+    this.ppd = pixels;
+    iMPPD = 1 / pixels;
+  },
+  u(x) { return (x + this.traslationX) * this.scaleW; },
+  v(y) { return (y + this.traslationY) * this.scaleH; }
+};
+
+// Init noise canvas context.
+export function delegateNoiseCtxTo(ctx) {
+  noiseCtx = ctx;
+  resetLoop(CFG.type);
 }
 
-export function setContextNoise(context) {
-  ctx = context;
-  resetLoop('type', S.type);
+// Init skin canvas context.
+export function delegateSkinCtxTo(ctx) {
+  skinCtx = ctx;
+  CFG.setSkinName = CFG.skinName;
 }
 
-export function resetLoop(name, value) {
-  S[name] = value;
-  sizeW = 1 / (S.resW * S.zoom);
-  sizeH = 1 / (S.resH * S.zoom);
-  if (name === 'type') {
-    cancelAnimationFrame(raf);
-    switch (S.type) {
-      case 'printAndgenData1D': printAndgenData1D(); break;
-      case 'genData2D': genData2D(); break;
-      case 'genData3D': genData3D(); break;
-      case 'genData3DFlow': genData3DFlow(); break;
-      case 'genData3DRidge': genData3DRidge(); break;
-      case 'genData3DSin': genData3DSin(); break;
-      case 'genData3DFlame': genData3DFlame(); break;
-      case 'genData3DCenter': genData3DCenter(); break;
-      case 'genData3DCenterRidge': genData3DCenterRidge(); break;
-      default: genData3D(); break;
-    }
+function resetLoop(type) {
+  cancelAnimationFrame(raf);
+  switch (type) {
+    case '_1D': _1D(); break;
+    case '_2D': _2D(); break;
+    case '_3D': _3D(); break;
+    case '_3DFlow': _3DFlow(); break;
+    case '_3DRidge': _3DRidge(); break;
+    case '_3DSinX': _3DSinX(); break;
+    case '_3DFlame': _3DFlame(); break;
+    case '_3DSphere': _3DSphere(); break;
+    case '_3DSphereRidge': _3DSphereRidge(); break;
+    default: _1D(); break;
   }
 }
 
-function runSeed() {
-  if (S.run) S.seed = ((S.seed + S.step) * 1000) * 0.001;
-  /* if (S.skinRotation) {
-    const CHUNK = [];
-    const PIXELS = S.pixelsToRotate;
-    for (let n = 0; n < PIXELS; n++) {
-      for (let RGBA = 3; RGBA >= 0; RGBA--) {
-        CHUNK[RGBA] = S.skinData.pop(); // pop last pixel data
+// Print used for 2 or 3D.
+function printFrame() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      // Make it integer and clamp between 0 and 255
+      let value = TRUNC(noiseData[INDEX(x, y)]);
+      if (value > COLOR_RANGE) value = COLOR_RANGE;
+      if (value < 0) value = 0;
+      // Invert value.
+      if (CFG.invert) value = COLOR_RANGE - value;
+      if (CFG.isDefaultSkin) {
+        PIXEL[0] = value;
+        PIXEL[1] = value;
+        PIXEL[2] = value;
+        PIXEL[3] = value;
+      } else {
+        // Values = [0-255], skin image is 256 pixels wide.
+        PIXEL[0] = skinData[value * 4 + 0];
+        PIXEL[1] = skinData[value * 4 + 1];
+        PIXEL[2] = skinData[value * 4 + 2];
+        PIXEL[3] = skinData[value * 4 + 3];
       }
-      S.skinData.unshift(...CHUNK); // unshift last pixel
-    }
-  } */
-}
-
-function printData() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      for (let sub_y = 0; sub_y < S.ppd; sub_y++) {
-        for (let sub_x = 0; sub_x < S.ppd; sub_x++) {
-          if (x + sub_x >= IMG_RES || y + sub_y >= IMG_RES) break;
-          const PIXEL_INDEX = (y + sub_y) * IMG_RES + (x + sub_x);
-          const DATA = MAX(MIN(
-            DATA_ARRAY[INDEX(x, y)],
-            255), 0);
-          if (S.skin !== 'default') {
-            IMG_DATA.data[PIXEL_INDEX * 4 + 0] = S.skinData[DATA * 4 + 0];
-            IMG_DATA.data[PIXEL_INDEX * 4 + 1] = S.skinData[DATA * 4 + 1];
-            IMG_DATA.data[PIXEL_INDEX * 4 + 2] = S.skinData[DATA * 4 + 2];
-            IMG_DATA.data[PIXEL_INDEX * 4 + 3] = S.skinData[DATA * 4 + 3];
-          } else {
-            IMG_DATA.data[PIXEL_INDEX * 4 + 0] = DATA;
-            IMG_DATA.data[PIXEL_INDEX * 4 + 1] = DATA;
-            IMG_DATA.data[PIXEL_INDEX * 4 + 2] = DATA;
-            IMG_DATA.data[PIXEL_INDEX * 4 + 3] = DATA;
-          }
+      // Loop through sub square (all the same color).
+      for (let subY = 0; subY < CFG.ppd; subY++) {
+        // Boudary control Y.
+        if (y + subY >= NOISE_CAN_H) break;
+        for (let subX = 0; subX < CFG.ppd; subX++) {
+          // Boudary control X.
+          if (x + subX >= NOISE_CAN_W) break;
+          const PIXEL_INDEX = (y + subY) * (NOISE_CAN_W) + (x + subX);
+          NOISE_IMG.data[PIXEL_INDEX * 4 + 0] = PIXEL[0];
+          NOISE_IMG.data[PIXEL_INDEX * 4 + 1] = PIXEL[1];
+          NOISE_IMG.data[PIXEL_INDEX * 4 + 2] = PIXEL[2];
+          NOISE_IMG.data[PIXEL_INDEX * 4 + 3] = PIXEL[3];
         }
       }
     }
   }
-  ctx.clearRect(0, 0, IMG_RES, IMG_RES);
-  ctx.putImageData(IMG_DATA, 0, 0);
-  runSeed();
+  noiseCtx.clearRect(0, 0, NOISE_CAN_W, NOISE_CAN_H);
+  noiseCtx.putImageData(NOISE_IMG, 0, 0);
 }
 
-// loops
-function printAndgenData1D() {
-  for (let x = 0; x < IMG_RES; x++) {
-    const u = U(x);
-    let n = 0, fre_k = S.fre, amp_k = S.amp;
-    for (let k = 0; k < S.oct; k++) {
-      n += PERLIN_1D((u + k) * fre_k + S.seed) * amp_k;
-      fre_k *= S.lac;
-      amp_k *= S.per;
+function _1D() {
+  for (let x = 0; x < NOISE_CAN_W; x++) {
+    const U = CFG.u(x);
+    let n = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+    for (let k = 0; k < CFG.octaves; k++) {
+      n += SIN(PERLIN_1D((U + k) * freK + CFG.seed) * ampK);
+      freK *= CFG.lacunarity;
+      ampK *= CFG.persistence;
     }
-    DATA_ARRAY[x] = n * IMG_RES05 + IMG_RES05;
+    n = n * NOISE_CAN_HALF_H + NOISE_CAN_HALF_H;
+    if (CFG.invert) n = NOISE_CAN_H - n;
+    noiseData[x] = n;
   }
-  /* print */
-  ctx.clearRect(0, 0, IMG_RES, IMG_RES);
-  ctx.beginPath();
-  ctx.strokeStyle = 'white';
-  ctx.lineWidth = 1;
-  ctx.moveTo(0, DATA_ARRAY[0]);
-  DATA_ARRAY.forEach((x, i) => {
-    ctx.lineTo(i + 1, (i + 1 < IMG_RES ? DATA_ARRAY[i + 1] : x));
+  // Print.
+  noiseCtx.clearRect(0, 0, NOISE_CAN_W, NOISE_CAN_H);
+  noiseCtx.beginPath();
+  noiseCtx.strokeStyle = '#3F3';
+  noiseCtx.lineWidth = 1;
+  noiseCtx.moveTo(0, noiseData[0]);
+  noiseData.forEach((n, i) => {
+    noiseCtx.lineTo(
+      i + 1, (i + 1 < NOISE_CAN_W ? noiseData[i + 1] : n));
   });
-  ctx.stroke();
-  ctx.closePath();
-  runSeed();
-  raf = requestAnimationFrame(printAndgenData1D);
+  noiseCtx.stroke();
+  noiseCtx.closePath();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_1D);
 }
 
-function genData2D() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const u = U(x), v = V(y);
-      let n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct; k++) {
-        n += PERLIN_2D(
-          (u + k) * freK + S.seed,
-          (v + k) * freK + S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
+function _2D() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const U = CFG.u(x), V = CFG.v(y);
+      let n = 0, freK = CFG.frequency, ampK = CFG.amplitude
+      for (let k = 0; k < CFG.octaves; k++) {
+        n += SIN(PERLIN_2D(
+          (U + k) * freK + CFG.seed,
+          (V + k) * freK + CFG.seed) * ampK);
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] = Math.round(n * 128 + 128);
+      noiseData[INDEX(x, y)] = n * HALF_COLOR_RANGE + HALF_COLOR_RANGE;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData2D);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_2D);
 }
 
-function genData3D() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const u = U(x), v = V(y);
-      let n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct; k++) {
-        n += PERLIN_3D(
+function _3D() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const U = CFG.u(x), V = CFG.v(y);
+      let n = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n += SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK,
+          CFG.seed) * ampK);
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
+      }
+      noiseData[INDEX(x, y)] = n * HALF_COLOR_RANGE + HALF_COLOR_RANGE;
+    }
+  }
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3D);
+}
+
+function _3DFlow() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      let u = CFG.u(x), v = CFG.v(y);
+      let n0 = 0, n1 = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n0 += PERLIN_3D(
           (u + k) * freK,
           (v + k) * freK,
-          S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
+          CFG.seed) * ampK;
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] = Math.round(n * 128 + 128);
-    }
-  }
-  printData();
-  raf = requestAnimationFrame(genData3D);
-}
-
-function genData3DFlow() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      let rotation = 0, n = 0, freK = S.fre, ampK = S.amp;
-      let u = U(x), v = V(y);
-      for (let k = 0; k < S.oct; k++) {
-        rotation += PERLIN_3D(
+      const LENGHT = n0 < 0 ? -n0 * 48 : n0 * 48;
+      const ROTATION = n0 * PI;
+      const VEC = Vec2.byPolarCoords(LENGHT, ROTATION);
+      // Rotated and displaced coords.
+      u = CFG.u(x + VEC.x);
+      v = CFG.v(y + VEC.y);
+      freK = CFG.frequency;
+      ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n1 += PERLIN_3D(
           (u + k) * freK,
           (v + k) * freK,
-          S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
+          CFG.seed) * ampK;
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      const LENGHT = rotation * S.flowFac;
-      rotation *= PI * .5;
-      const VEC = Vec2.byPolarCoords(LENGHT, rotation);
-      u = U(VEC.x + x);
-      v = V(VEC.y + y);
-      freK = S.fre; // reset
-      ampK = S.amp; // reset
-      for (let k = 0; k < S.oct; k++) {
-        n += PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK,
-          S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
-      }
-      DATA_ARRAY[INDEX(x, y)] = Math.round(n * 128 + 128);
+      noiseData[INDEX(x, y)] = n1 * HALF_COLOR_RANGE + HALF_COLOR_RANGE;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DFlow);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DFlow);
 }
 
-function genData3DRidge() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const u = U(x), v = V(y);
-      let n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct; k++) {
-        const AUX = PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK,
-          S.seed) * ampK;
-        n += AUX > 0 ? AUX : -AUX;
-        freK *= S.lac;
-        ampK *= S.per;
+function _3DRidge() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const U = CFG.u(x), V = CFG.v(y);
+      let nAbs = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        const N = SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK,
+          CFG.seed) * ampK);
+        nAbs += N < 0 ? -N : N;
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] =
-        Math.round((S.ridgeInv ? 1 - n : n) * 255);
+      noiseData[INDEX(x, y)] = nAbs * COLOR_RANGE;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DRidge);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DRidge);
 }
 
-function genData3DSin() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const u = U(x), v = V(y);
-      let n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct; k++) {
-        n += PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK,
-          S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
+function _3DSinX() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const U = CFG.u(x), V = CFG.v(y);
+      let n = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n += SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK,
+          CFG.seed) * ampK);
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] =
-        Math.round(Math.sin((x / S.resW + n) * PI) * 128 + 128);
+      /**
+       * Wood/Marble-like texture.
+       * Sin functions of x axis displaced and augmented.
+       */
+      noiseData[INDEX(x, y)] =
+        SIN((U + n) * PI * 4) * HALF_COLOR_RANGE + HALF_COLOR_RANGE;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DSin);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DSinX);
 }
 
-function genData3DFlame() {
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const u = U(x), v = V(y);
-      let n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct; k++) {
-        n += PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK + S.seed * 4,
-          S.seed) * ampK;
-        freK *= S.lac;
-        ampK *= S.per;
+function _3DFlame() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const U = CFG.u(x), V = CFG.v(y);
+      let n = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n += SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK + CFG.seed * 5,
+          CFG.seed * 1) * ampK);
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] =
-        Math.round(((Math.sin((x / S.resW + n) * S.flameFac * PI)) * 128
-        ) + 128) - ((S.resH - y));
+      /**
+       * A --> Center value of sin waves from x axis with displaced domine.
+       * B --> Mult. that to percent. of y
+       */
+      noiseData[INDEX(x, y)] =
+        (SIN((U + n) * PI) * HALF_COLOR_RANGE + HALF_COLOR_RANGE) *
+        (y / NOISE_CAN_H);
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DFlame);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DFlame);
 }
 
-function genData3DCenter() {
-  const CENTER = new Vec2(IMG_RES05, IMG_RES05);
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const POS = new Vec2(x, y);
-      const DISTANCE = fade(
-        Vec2.distanceEuclidian(POS, CENTER) / IMG_RES05) * IMG_RES;
-      let
-        u = (S.traX + x) * sizeW,
-        v = (S.traY + y) * sizeH,
-        n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct;
-        k++, freK *= S.lac, ampK *= S.per) {
-        n += PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK,
-          S.seed * 4 + Math.cos(DISTANCE / (IMG_RES * S.centerFac))
-        ) * ampK;
+function _3DSphere() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const XY = new Vec2(x, y),
+        DIS = Vec2.distanceEuclidian(XY, NOISE_CENTER),
+        DIS_PI_05 = (DIS * IMNCHMS) * PI_05,
+        U = CFG.u(x), V = CFG.v(y);
+      let n = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        n += SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK,
+          CFG.seed * 5 + COS(DIS_PI_05)
+        ) * ampK);
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] =
-        Math.round((n - (DISTANCE / IMG_RES)) * 128 + 128);
+      /**
+       * A --> Center noise, percent. of noise applied to color,
+       * apply 'sphere fade' percent. to that.
+       * B --> 'Sphere fade' percent. to color.
+       * C --> Average A and B.
+       */
+      noiseData[INDEX(x, y)] =
+        ((n * HALF_COLOR_RANGE + HALF_COLOR_RANGE) * COS(DIS_PI_05) +
+          COLOR_RANGE * COS(DIS_PI_05)) * .5;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DCenter);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DSphere);
 }
 
-function genData3DCenterRidge() {
-  const CENTER = new Vec2(IMG_RES05, IMG_RES05);
-  for (let y = 0; y < IMG_RES; y += S.ppd) {
-    for (let x = 0; x < IMG_RES; x += S.ppd) {
-      const POS = new Vec2(x, y);
-      const DISTANCE = fade(
-        Vec2.distanceEuclidian(POS, CENTER) / IMG_RES05) * IMG_RES;
-      let
-        u = U(x),
-        v = V(y),
-        n = 0, freK = S.fre, ampK = S.amp;
-      for (let k = 0; k < S.oct;
-        k++, freK *= S.lac, ampK *= S.per) {
-        const AUX = PERLIN_3D(
-          (u + k) * freK,
-          (v + k) * freK,
-          S.seed * 4 + Math.cos(DISTANCE / (IMG_RES * S.centerFac))
-        ) * ampK;
-        n += AUX > 0 ? AUX : -AUX;
+function _3DSphereRidge() {
+  for (let y = 0; y < NOISE_CAN_H; y += CFG.ppd) {
+    for (let x = 0; x < NOISE_CAN_W; x += CFG.ppd) {
+      const XY = new Vec2(x, y),
+        DIS = Vec2.distanceEuclidian(XY, NOISE_CENTER),
+        DIS_PI_05 = (DIS * IMNCHMS) * PI_05,
+        U = CFG.u(x), V = CFG.v(y);
+      let nAbs = 0, freK = CFG.frequency, ampK = CFG.amplitude;
+      for (let k = 0; k < CFG.octaves; k++) {
+        const N = SIN(PERLIN_3D(
+          (U + k) * freK,
+          (V + k) * freK,
+          CFG.seed * 4 + COS(DIS_PI_05)
+        ) * ampK);
+        nAbs += N < 0 ? -N : N;
+        freK *= CFG.lacunarity;
+        ampK *= CFG.persistence;
       }
-      DATA_ARRAY[INDEX(x, y)] =
-        Math.round((n - (DISTANCE / IMG_RES)) * 128 + 128);
+      /**
+       * A --> Noise percent. applied to color,
+       * apply 'sphere fade' percent. to that.
+       * B --> 'Sphere fade' percent. to color.
+       * C --> Average A and B.
+       */
+      noiseData[INDEX(x, y)] =
+        (nAbs * COLOR_RANGE * COS(DIS_PI_05) +
+          COLOR_RANGE * COS(DIS_PI_05)) * .5;
     }
   }
-  printData();
-  raf = requestAnimationFrame(genData3DCenterRidge);
+  printFrame();
+  if (CFG.run) CFG.seed += CFG.step;
+  raf = requestAnimationFrame(_3DSphereRidge);
 }

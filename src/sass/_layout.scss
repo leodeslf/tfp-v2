@@ -1,0 +1,21 @@
+body {
+  background-image: url("../images/bg.png");
+  min-height: 100vh;
+  display: flex;
+}
+
+#root {
+  min-height: 100%;
+  min-width: 100%;
+  display: grid;
+  grid-template-rows: auto min-content;
+}
+
+.tfp-v2 {
+  display: flex;
+  filter: drop-shadow($shadow);
+}
+
+footer {
+  font-size: $font-size--small;
+}

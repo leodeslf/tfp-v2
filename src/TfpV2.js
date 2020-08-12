@@ -1,10 +1,12 @@
 import React from 'react';
-import Box from './components/Box';
+import Footer from './components/Footer';
+import Main from './components/Main';
 
 export default function TfpV2() {
   return (
     <>
-      <Box />
+      <Main />
+      <Footer />
     </>
   );
 }
