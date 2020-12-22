@@ -6,7 +6,7 @@ export default function Footer() {
       <h1><a href='./'>TFP v2</a></h1>
       <span>
         <a
-          href="https://leodeslf-portfolio.netlify.app/"
+          href="https://leodeslf.com/"
           title="Portafolio">
           Leo de S.L.F
         </a>
