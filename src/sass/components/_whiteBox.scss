@@ -33,6 +33,7 @@
   display: grid;
   grid-template-areas: "label-base label-time label-wave label-view" "div div div div";
   grid-template-rows: min-content auto;
+  align-self: flex-start;
   @media screen and (max-width: 800px) {
     & {
       width: 100%;
