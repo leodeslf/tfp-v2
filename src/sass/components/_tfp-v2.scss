@@ -1,10 +1,9 @@
-.white-box {
-  align-items: center;
+.tfp-v2 {
   background-color: $bg-alt;
   display: flex;
   flex-direction: row;
-  margin: auto;
-  width: fit-content;
+  height: fit-content;
+  filter: drop-shadow($shadow);
   @media screen and (max-width: 800px) {
     & {
       flex-direction: column;
@@ -21,7 +20,7 @@
 .output-box {
   display: grid;
   position: relative;
-  width: fit-content;
+  place-self: center;
   @media screen and (max-width: 800px) {
     & {
       padding: 3rem;
@@ -33,7 +32,7 @@
   display: grid;
   grid-template-areas: "label-base label-time label-wave label-view" "div div div div";
   grid-template-rows: min-content auto;
-  align-self: flex-start;
+  align-self: stretch;
   @media screen and (max-width: 800px) {
     & {
       width: 100%;

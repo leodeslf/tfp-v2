@@ -26,8 +26,8 @@ export default class Main extends Component {
 
   render() {
     return (
-      <main className="tfp-v2">
-        <section className="white-box">
+      <main>
+        <section className="tfp-v2">
           <div className="output-box">
             <CanvasNoise
               bg={this.state.bg}

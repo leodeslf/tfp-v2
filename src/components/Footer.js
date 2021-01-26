@@ -4,13 +4,11 @@ export default function Footer() {
   return (
     <footer>
       <h1><a href='./'>TFP v2</a></h1>
-      <span>
-        <a
-          href="https://leodeslf.com/"
-          title="Portafolio">
-          Leo de S.L.F
-        </a>
-      </span>
+      <a
+        href="https://leodeslf.com/"
+        title="Portafolio">
+        Leo de S.L.F
+      </a>
     </footer>
   );
 }

@@ -1,21 +1,16 @@
-body {
-  background-image: url("../images/bg.png");
-  min-height: 100vh;
-  display: flex;
-}
+/* html {
+} */
 
 #root {
-  min-height: 100%;
-  min-width: 100%;
-  display: grid;
-  grid-template-rows: auto min-content;
-}
-
-.tfp-v2 {
+  background-image: url("../images/bg.png");
   display: flex;
-  filter: drop-shadow($shadow);
+  flex-direction: column;
+  height: 100vh;
 }
 
-footer {
-  font-size: $font-size--small;
+main {
+  display: flex;
+  flex-grow: 1;
+  justify-content: center;
+  align-items: center;
 }

@@ -5,7 +5,12 @@ const CAN_ID = 'canvas-noise';
 
 export default class CanvasNoise extends Component {
   componentDidMount() {
-    delegateNoiseCtxTo(document.getElementById(CAN_ID).getContext('2d'));
+    delegateNoiseCtxTo(
+      document.getElementById(CAN_ID)
+        .getContext('2d', {
+          willReadFrequently: true
+        })
+    );
   }
 
   onMouseDownHandler = () => {
