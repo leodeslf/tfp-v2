@@ -32,10 +32,8 @@ export default class Main extends Component {
             <CanvasNoise
               bg={this.state.bg}
               reportToParent={this.updateFromChild} />
-            <CanvasSkin
-              bg={this.state.bg} />
-            <CanvasFPS
-              visible={this.state.showFPS} />
+            <CanvasSkin bg={this.state.bg} />
+            <CanvasFPS visible={this.state.showFPS} />
           </div>
           <div className="input-box">
             {TABS.map((tab, i) =>
